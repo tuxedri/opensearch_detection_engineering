@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.tools/
+runtime/*
+!runtime/.gitignore
+coverage/output/*
+!coverage/output/.gitkeep

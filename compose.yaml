@@ -1,0 +1,147 @@
+name: opensearch-detection-lab
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-3.8.0}
+    environment:
+      cluster.name: opensearch-detection-lab
+      node.name: opensearch
+      network.host: 0.0.0.0
+      discovery.type: single-node
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-LocalDemo-ChangeMe-2026!}
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+      # The image must generate its security config to apply the initial admin password.
+      - ./config/opensearch/index-template.json:/usr/share/opensearch/config/index-template.json:ro
+    ports:
+      # Vagrant forwards to the VM network interface, not guest loopback.
+      - "0.0.0.0:9200:9200"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl --silent --fail --insecure
+          --user "admin:$${OPENSEARCH_INITIAL_ADMIN_PASSWORD}"
+          https://localhost:9200/_cluster/health
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:${OPENSEARCH_VERSION:-3.8.0}
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+      OPENSEARCH_USERNAME: admin
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-LocalDemo-ChangeMe-2026!}
+    volumes:
+      - ./config/opensearch-dashboards/opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.yml:ro
+    ports:
+      # Vagrant forwards to the VM network interface, not guest loopback.
+      - "0.0.0.0:5601:5601"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://localhost:5601/api/status').then(r =>
+          process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  logstash:
+    build:
+      context: .
+      dockerfile: config/logstash/Dockerfile
+      args:
+        LOGSTASH_VERSION: ${LOGSTASH_VERSION:-8.19.21}
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      OPENSEARCH_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-LocalDemo-ChangeMe-2026!}
+      LS_JAVA_OPTS: ${LOGSTASH_JAVA_OPTS:--Xms512m -Xmx512m}
+    volumes:
+      - ./config/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./config/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9600'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 45s
+    restart: unless-stopped
+
+  auditbeat:
+    image: docker.elastic.co/beats/auditbeat:${AUDITBEAT_VERSION:-8.19.21}
+    user: root
+    pid: host
+    cap_add:
+      - AUDIT_CONTROL
+      - AUDIT_READ
+    depends_on:
+      logstash:
+        condition: service_healthy
+    command: ["--strict.perms=false", "-e"]
+    volumes:
+      - ./config/auditbeat/auditbeat.yml:/usr/share/auditbeat/auditbeat.yml:ro
+      - auditbeat-data:/usr/share/auditbeat/data
+    healthcheck:
+      test: ["CMD-SHELL", "auditbeat test output >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  atomic-runner:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: tests/atomic/runner/Dockerfile
+    command:
+      - python
+      - /lab/tests/atomic/runner/run.py
+      - --config
+      - /lab/tests/atomic/tests.yml
+      - --output
+      - /lab/runtime/latest.json
+    volumes:
+      - ./:/lab:ro
+      - ./runtime:/lab/runtime
+
+  coverage-analyzer:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: tests/atomic/runner/Dockerfile
+    command:
+      - python
+      - /lab/coverage/analyze.py
+      - --manifest
+      - /lab/runtime/latest.json
+      - --output-dir
+      - /lab/coverage/output
+    volumes:
+      - ./:/lab:ro
+      - ./runtime:/lab/runtime:ro
+      - ./coverage/output:/lab/coverage/output
+
+volumes:
+  opensearch-data:
+  auditbeat-data:

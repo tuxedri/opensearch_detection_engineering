@@ -1,0 +1,7 @@
+api.http.host: 0.0.0.0
+config.reload.automatic: false
+log.level: info
+pipeline.ecs_compatibility: v8
+pipeline.workers: 2
+queue.type: persisted
+xpack.monitoring.enabled: false

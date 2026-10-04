@@ -1,0 +1,21 @@
+auditbeat.modules:
+  - module: auditd
+    audit_rule_files: []
+    audit_rules: |
+      -a always,exit -F arch=b64 -S execve,execveat -k detection-lab-exec
+      -a always,exit -F arch=b32 -S execve,execveat -k detection-lab-exec
+    backlog_limit: 8192
+    failure_mode: silent
+    rate_limit: 0
+    resolve_ids: true
+    socket_type: unicast
+
+processors:
+  - add_host_metadata: ~
+
+output.logstash:
+  hosts:
+    - logstash:5044
+
+logging.level: info
+logging.to_files: false

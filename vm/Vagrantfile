@@ -1,0 +1,60 @@
+# frozen_string_literal: true
+
+VM_BOX = ENV.fetch("VM_BOX", "bento/ubuntu-24.04")
+VM_BOX_VERSION = ENV["VM_BOX_VERSION"]
+VM_PROVIDER = ENV.fetch("VM_PROVIDER", "virtualbox")
+VM_CPUS = Integer(ENV.fetch("VM_CPUS", "4"), 10)
+VM_MEMORY = Integer(ENV.fetch("VM_MEMORY", "8192"), 10)
+VM_DISK_GB = Integer(ENV.fetch("VM_DISK_GB", "40"), 10)
+REPO_MOUNT_PATH = ENV.fetch("REPO_MOUNT_PATH", "/workspace/opensearch-detection-lab")
+DEFAULT_SYNC_TYPE = VM_PROVIDER == "libvirt" ? "virtiofs" : "virtualbox"
+REPO_SYNC_TYPE = ENV.fetch("REPO_SYNC_TYPE", DEFAULT_SYNC_TYPE)
+VM_DASHBOARDS_PORT = Integer(ENV.fetch("VM_DASHBOARDS_PORT", "5601"), 10)
+VM_OPENSEARCH_PORT = Integer(ENV.fetch("VM_OPENSEARCH_PORT", "9200"), 10)
+REPO_ROOT = File.expand_path("..", __dir__)
+
+Vagrant.configure("2") do |config|
+  config.vm.box = VM_BOX
+  config.vm.box_version = VM_BOX_VERSION unless VM_BOX_VERSION.nil? || VM_BOX_VERSION.empty?
+  config.vm.hostname = "opensearch-detection-lab"
+  config.vm.boot_timeout = 600
+  config.vm.box_check_update = false
+  config.vm.disk :disk, size: "#{VM_DISK_GB}GB", primary: true
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder(
+    REPO_ROOT,
+    REPO_MOUNT_PATH,
+    type: REPO_SYNC_TYPE,
+    owner: "vagrant",
+    group: "vagrant"
+  )
+
+  config.vm.network :forwarded_port,
+                    guest: 5601,
+                    host: VM_DASHBOARDS_PORT,
+                    host_ip: "127.0.0.1",
+                    auto_correct: true
+  config.vm.network :forwarded_port,
+                    guest: 9200,
+                    host: VM_OPENSEARCH_PORT,
+                    host_ip: "127.0.0.1",
+                    auto_correct: true
+
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.cpus = VM_CPUS
+    libvirt.memory = VM_MEMORY
+    libvirt.machine_virtual_size = VM_DISK_GB
+    libvirt.memorybacking :access, mode: "shared" if REPO_SYNC_TYPE == "virtiofs"
+  end
+
+  config.vm.provider :virtualbox do |virtualbox|
+    virtualbox.name = "opensearch-detection-lab"
+    virtualbox.cpus = VM_CPUS
+    virtualbox.memory = VM_MEMORY
+  end
+
+  config.vm.provision "shell",
+                      path: "provision.sh",
+                      args: [REPO_MOUNT_PATH]
+end
