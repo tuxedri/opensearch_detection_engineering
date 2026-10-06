@@ -1,0 +1,25 @@
+# Atomic Red Team techniques executed by tests/atomic/invoke-atomic.sh
+#
+# Each enabled entry spawns one Docker container from
+# redcanary/invoke-atomicredteam:latest and runs
+#   Invoke-AtomicTest <technique> [<args>]
+# Container name and the com.redcanary.atomic.* labels are derived from <technique>.
+# Each entry selects one upstream test with -TestGuids; atomic_guid is its label.
+# Use --limit N on invoke-atomic.sh to cap how many enabled entries execute.
+# Sources:
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1059.004/T1059.004.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1140/T1140.yaml
+
+techniques:
+  - technique: T1059.004                       # the Invoke-AtomicTest argument
+    name: Obfuscated command line scripts
+    atomic_guid: 5bec4cc8-f41e-437b-b417-33ff60acf9af
+    enabled: true
+    timeout_seconds: 120
+    args: "-TestGuids 5bec4cc8-f41e-437b-b417-33ff60acf9af"
+  - technique: T1140
+    name: Base64 decoding with shell utilities
+    atomic_guid: b4f6a567-a27a-41e5-b8ef-ac4b4008bb7e
+    enabled: true
+    timeout_seconds: 120
+    args: "-TestGuids b4f6a567-a27a-41e5-b8ef-ac4b4008bb7e"

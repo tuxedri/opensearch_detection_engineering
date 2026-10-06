@@ -1,0 +1,22 @@
+source:
+  repository: https://github.com/redcanaryco/atomic-red-team
+  commit: 388942adbd9641f4dfdcf079d7efe9a75ec0ac43
+
+tests:
+  - technique: T1059.004
+    atomic_guid: 5bec4cc8-f41e-437b-b417-33ff60acf9af
+    name: Obfuscated command line scripts
+    enabled: true
+    expected_rule: true
+    expected_sigma_rule: e2072cab-8c9a-459b-b63c-40ae79e27031
+    timeout_seconds: 30
+    command: |
+      ART="$(printf id | base64 -w 0)"
+      printf '%s' "$ART" | base64 -d | /bin/bash
+      unset ART
+    telemetry:
+      process_names:
+        - base64
+      command_contains:
+        - -d
+    cleanup: null

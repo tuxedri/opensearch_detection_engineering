@@ -84,16 +84,96 @@ The initial tracer executes the safe Atomic Red Team T1059.004 base64 command an
 writes its execution manifest below `runtime/`. Security Analytics detector automation
 is the next implementation phase.
 
+## Dashboards Saved Objects
+
+After starting the stack, run inside the VM:
+
+```bash
+make objects
+```
+
+This imports every `*.ndjson` file directly in
+`config/opensearch-dashboards/objects/`: `indexpattern*` first, `dashboard*`
+second, then remaining files, alphabetically within each group. Existing objects
+with the same type and ID are overwritten, including saved visualizations.
+Re-running the command reapplies the exports.
+
+The helper requires host Python 3 and running `opensearch` and
+`opensearch-dashboards` services. It uses curl and the existing admin credentials
+inside the OpenSearch container. It waits up to 120 seconds for Dashboards;
+override this with `OPENSEARCH_DASHBOARD_WAIT=300 make objects`.
+An HTTP or object-level import error stops the command; earlier imports remain
+applied. OpenSearch Dashboards 3.8 supports `overwrite=true`, but has no
+`override=true` import option to bypass migration errors.
+
+## Docker Metadata in Audit Events
+
+
+Auditbeat resolves audited process IDs through the VM's cgroups and Docker API to
+add `container.id`, `container.name`, `container.image.name`, and Docker labels.
+Logstash removes the entire `container.labels` object before indexing.
+
+See [Docker metadata](docs/docker-metadata.md) for the VM update commands, a
+two-container verification, and the fields to display in Dashboards. `make up` also
+installs the container mappings for existing indexes and all templates from
+`config/opensearch/index-templates/` for new indexes.
+
+To install or update those templates independently:
+
+```bash
+bash scripts/install-index-template.sh
+```
+
+The helper validates JSON before sending requests, then installs every `*.json`
+file directly in that directory in alphabetical order. Template names come from
+the filenames without `.json`, except `default-auditbeat-8.12.json`, which retains
+the existing `security-auditbeat` template name. For example,
+`sap-linux-findings.json` is installed as `sap-linux-findings`. Existing templates
+with those names are updated. Any HTTP error or missing acknowledgement stops
+installation; previously applied changes remain in place.
+
 ## Validation
 
-With the Python packages from `requirements.txt` installed, run:
+Static checks parse YAML and JSON, syntax-check every script in `scripts/` and
+`vm/`, and render the Compose configuration:
 
 ```bash
 make validate
-make test
 ```
 
-Validation parses YAML, checks each shell script individually, and validates Compose.
+The regression suite and the attacker simulation are separate targets. Run the
+simulation **inside the disposable VM**, where Docker is available and Auditbeat
+collects the generated telemetry:
+
+```bash
+make unit-test   # Python regression tests (pytest)
+make test        # Run Atomic Red Team techniques; one container per enabled test
+```
+
+`make test` reads `tests/atomic/invoke.yml`, runs `Invoke-AtomicTest <technique>`
+in a fresh `redcanary/invoke-atomicredteam:latest` container for each enabled
+technique (container name and labels are derived from the technique), and exits
+non-zero if any test fails. It is non-interactive by default. Limit how many run
+or attach a terminal with arguments:
+
+```bash
+make test ARGS="--limit 2"     # run only the first 2 enabled techniques
+make test ARGS="--interactive" # attach a TTY (-it) for manual use
+```
+
+Each invocation generates one six-character random hexadecimal `testrun` ID,
+prints it in the startup log, and labels every test container with
+`com.redcanary.atomic.testrun=<id>`. Logstash copies the dedotted label to
+`atomic.testrun` before removing container labels. Tagged events go to
+`security-auditbeat-<id>-YYYY.MM.dd`; events without a run ID retain the normal
+`security-auditbeat-YYYY.MM.dd` index. All techniques in the invocation share the
+run ID; a run spanning dates creates one index per date. Short random IDs can
+collide and are not a guarantee of uniqueness.
+
+After updating the pipeline, restart Logstash with
+`./scripts/compose.sh restart logstash`. Refresh the Auditbeat index pattern's
+field list in Dashboards after the first tagged events arrive to discover
+`atomic.testrun`. The `security-auditbeat-*` index template matches per-run indexes.
 
 ## Troubleshooting Host Access
 

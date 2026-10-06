@@ -35,10 +35,7 @@ log "Starting OpenSearch, Dashboards, and Logstash."
 compose up --detach --build opensearch opensearch-dashboards logstash
 "${PROJECT_ROOT}/scripts/wait-for-opensearch.sh"
 
-log "Installing the security-linux index template."
-compose exec -T opensearch sh -c \
-  'curl --silent --fail --insecure --user "admin:${OPENSEARCH_INITIAL_ADMIN_PASSWORD}" --header "Content-Type: application/json" --request PUT https://localhost:9200/_index_template/security-linux --data-binary @/usr/share/opensearch/config/index-template.json' \
-  >/dev/null
+bash "${PROJECT_ROOT}/scripts/install-index-template.sh"
 
 log "Starting Auditbeat after the index template is active."
 compose up --detach auditbeat

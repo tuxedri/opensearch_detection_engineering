@@ -4,7 +4,7 @@ VM_BOX = ENV.fetch("VM_BOX", "bento/ubuntu-24.04")
 VM_BOX_VERSION = ENV["VM_BOX_VERSION"]
 VM_PROVIDER = ENV.fetch("VM_PROVIDER", "virtualbox")
 VM_CPUS = Integer(ENV.fetch("VM_CPUS", "4"), 10)
-VM_MEMORY = Integer(ENV.fetch("VM_MEMORY", "8192"), 10)
+VM_MEMORY = Integer(ENV.fetch("VM_MEMORY", "12288"), 10)
 VM_DISK_GB = Integer(ENV.fetch("VM_DISK_GB", "40"), 10)
 REPO_MOUNT_PATH = ENV.fetch("REPO_MOUNT_PATH", "/workspace/opensearch-detection-lab")
 DEFAULT_SYNC_TYPE = VM_PROVIDER == "libvirt" ? "virtiofs" : "virtualbox"

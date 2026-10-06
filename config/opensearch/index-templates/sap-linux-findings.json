@@ -1,0 +1,16 @@
+{
+  "priority": 50,
+  "index_patterns": [
+    ".opensearch-sap-linux-findings*"
+  ],
+  "template": {
+    "mappings": {
+      "properties": {
+        "timestamp": {
+          "type": "date",
+          "format": "epoch_millis"
+        }
+      }
+    }
+  }
+}

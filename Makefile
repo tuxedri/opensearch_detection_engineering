@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: compose-install up down setup health atomic demo coverage reset logs status test validate vm-up vm-ssh vm-destroy vm-validate
+.PHONY: compose-install up down setup health objects atomic demo coverage reset logs status test unit-test validate vm-up vm-ssh vm-destroy vm-validate
 
 COMPOSE := ./scripts/compose.sh
 VM_DIR := $(CURDIR)/vm
@@ -21,13 +21,8 @@ setup:
 health:
 	./scripts/health.sh
 
-atomic:
-	$(COMPOSE) --profile tools run --rm atomic-runner
-
-demo: health atomic coverage
-
-coverage:
-	./scripts/generate-coverage.sh
+objects:
+	bash ./scripts/install-saved-objects.sh
 
 reset:
 	./scripts/reset.sh
@@ -39,7 +34,10 @@ status:
 	$(COMPOSE) ps
 
 test:
-	python3 -m pytest -q
+	./tests/atomic/invoke-atomic.sh $(ARGS)
+
+unit-test:
+	python3 -m pytest -q tests/unit
 
 validate:
 	python3 -c 'import pathlib, yaml; [yaml.safe_load(p.read_text()) for p in pathlib.Path(".").rglob("*.yml")]; [yaml.safe_load(p.read_text()) for p in pathlib.Path(".").rglob("*.yaml")]'
