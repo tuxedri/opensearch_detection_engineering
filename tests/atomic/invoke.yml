@@ -16,10 +16,10 @@ techniques:
     atomic_guid: 5bec4cc8-f41e-437b-b417-33ff60acf9af
     enabled: true
     timeout_seconds: 120
-    args: "-TestGuids 5bec4cc8-f41e-437b-b417-33ff60acf9af"
+    args: ""
   - technique: T1140
     name: Base64 decoding with shell utilities
     atomic_guid: b4f6a567-a27a-41e5-b8ef-ac4b4008bb7e
     enabled: true
     timeout_seconds: 120
-    args: "-TestGuids b4f6a567-a27a-41e5-b8ef-ac4b4008bb7e"
+    args: ""

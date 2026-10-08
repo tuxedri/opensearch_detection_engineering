@@ -112,11 +112,10 @@ sanitize_name() {
 run_count=${#ROWS[@]}
 failed=0
 seq=0
-testrun="$(python3 -c 'import secrets; print(secrets.token_hex(3))')"
-readonly testrun
 
-log "Running ${run_count} Atomic technique(s) from ${CONFIG} (testrun=${testrun})"
 for row in "${ROWS[@]}"; do
+  testrun="$(python3 -c 'import secrets; print(secrets.token_hex(3))')"
+  log "Running ${run_count} Atomic technique(s) from ${CONFIG} (testrun=${testrun})"
   IFS=$'\x1f' read -r technique guid name timeout args <<<"$row"
   seq=$((seq + 1))
   name="$(sanitize_name "$technique")-${seq}"
