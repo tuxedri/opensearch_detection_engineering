@@ -1,0 +1,35 @@
+{
+  "index_patterns": ["securtiy-findings-view"],
+  "priority": 100,
+  "template": {
+    "mappings": {
+      "date_detection": false,
+      "properties": {
+        "@timestamp": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
+        "index": {"type": "keyword"},
+        "atomic": {"properties": {
+          "test": {"type": "keyword"},
+          "testrun": {"type": "keyword"},
+          "name": {"type": "keyword"},
+          "link": {"type": "keyword"}
+        }},
+        "finding": {"properties": {
+          "id": {"type": "keyword"},
+          "detector_id": {"type": "keyword"}
+        }},
+        "rule": {"properties": {
+          "name": {"type": "keyword"},
+          "query": {"type": "text"},
+          "tags": {"type": "keyword"}
+        }},
+        "source_document": {"properties": {
+          "id": {"type": "keyword"},
+          "found": {"type": "boolean"}
+        }},
+        "document": {"type": "object", "properties": {
+          "@timestamp": {"type": "date"}
+        }}
+      }
+    }
+  }
+}
