@@ -132,6 +132,31 @@ the existing `security-auditbeat` template name. For example,
 with those names are updated. Any HTTP error or missing acknowledgement stops
 installation; previously applied changes remain in place.
 
+## Detector Configuration: Auditbeat Field Mappings
+
+When configuring an OpenSearch Security Analytics detector for Auditbeat data,
+use these recommended field mappings:
+
+| OpenSearch detection rule field | Select Auditbeat field |
+| --- | --- |
+| `auditd.log.a0` | `auditd.data.a0` |
+| `auditd.log.comm` | `process.name` |
+| `auditd.log.exe` | `process.executable` |
+| `auditd.log.uid` | `user.id` |
+| `process.exe` | `process.executable` |
+| `process.real_user.id` | `user.id` |
+| `rsa.web.remote_domain` | Leave unmapped |
+| `system.auth.user` | `user.name` |
+| `timestamp` | `@timestamp` |
+
+## Enriched findings
+
+Run `make findings` inside the VM to import findings from all accessible detectors
+into `securtiy-findings-view`. Each record includes the rule, complete source
+document, and root-level `atomic.test` / `atomic.testrun` keyword filters. Repeated
+runs update stable document IDs. See [findings view](docs/findings-view.md) for
+dashboard setup, missing-document handling, and validation.
+
 ## Validation
 
 Static checks parse YAML and JSON, syntax-check every script in `scripts/` and
@@ -161,10 +186,43 @@ make test ARGS="--limit 2"     # run only the first 2 enabled techniques
 make test ARGS="--interactive" # attach a TTY (-it) for manual use
 ```
 
+The configuration selects one upstream test per entry using `-TestGuids` in
+`args`; `atomic_guid` supplies the container label only. In addition to the initial
+two tests, these Linux tests are enabled:
+
+| Technique | Selected test |
+| --- | --- |
+| T1556.003 | Malicious PAM rule |
+| T1553.004 | Install root CA on Debian/Ubuntu |
+| T1552.004 | Discover Private SSH Keys |
+| T1552.001 | Find AWS credentials |
+| T1548.003 | Unlimited sudo cache timeout |
+
+The certificate entry generates its prerequisite certificate and then invokes the
+test in the same container. PAM, certificate trust, and sudoers changes affect only
+that disposable container. The image needs `sudo`, `visudo`, `openssl`,
+`ca-certificates`, and `/etc/pam.d/su-l`. Credential discovery searches `/root`
+inside the container; an empty search result is valid and does not demonstrate
+successful credential collection.
+
+`T1546` is recorded but disabled because its upstream tests are Windows-only.
+Parent technique `T1552` is recorded but disabled because its Linux test requires
+Stratus and a configured AWS account with cloud resources; it is not a local
+credential-search test. Enabling either requires a suitable execution environment.
+
+Preview the configured commands with `make test ARGS="--dry-run"`. For a live run,
+inspect Atomic's `Exit code:` output as well as the runner result: upstream
+`Invoke-AtomicTest` does not necessarily propagate a test's failure to the PowerShell
+process exit status. The floating `latest` image may also contain older Atomic
+definitions than upstream.
+
 Each invocation generates one six-character random hexadecimal `testrun` ID,
 prints it in the startup log, and labels every test container with
-`com.redcanary.atomic.testrun=<id>`. Logstash copies the dedotted label to
-`atomic.testrun` before removing container labels. Tagged events go to
+`com.redcanary.atomic.test=<technique>`, `com.redcanary.atomic.name=<name>`,
+`com.redcanary.atomic.link=<source>` (the human-readable technique page) and
+`com.redcanary.atomic.testrun=<id>`. Logstash copies the dedotted labels to
+`atomic.test`, `atomic.name`, `atomic.link` and `atomic.testrun` before removing
+container labels. Tagged events go to
 `security-auditbeat-<id>-YYYY.MM.dd`; events without a run ID retain the normal
 `security-auditbeat-YYYY.MM.dd` index. All techniques in the invocation share the
 run ID; a run spanning dates creates one index per date. Short random IDs can
@@ -173,7 +231,7 @@ collide and are not a guarantee of uniqueness.
 After updating the pipeline, restart Logstash with
 `./scripts/compose.sh restart logstash`. Refresh the Auditbeat index pattern's
 field list in Dashboards after the first tagged events arrive to discover
-`atomic.testrun`. The `security-auditbeat-*` index template matches per-run indexes.
+`atomic.test`, `atomic.name`, `atomic.link` and `atomic.testrun`. The `security-auditbeat-*` index template matches per-run indexes.
 
 ## Troubleshooting Host Access
 

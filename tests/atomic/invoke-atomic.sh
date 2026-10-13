@@ -91,11 +91,12 @@ for item in items:
     count += 1
     guid = str(item.get("atomic_guid", "")).strip()
     name = str(item.get("name") or technique).replace("\x1f", " ").strip()
+    source = str(item.get("source") or "").strip()
     timeout = str(int(item.get("timeout_seconds", 120))).strip()
     args = str(item.get("args", "")).strip()
     # Field separator is a control char (not IFS-whitespace) so empty fields
     # do not collapse during 'read'.
-    print("\x1f".join([technique, guid, name, timeout, args]))
+    print("\x1f".join([technique, guid, name, timeout, args, source]))
 PY
 )
 
@@ -112,15 +113,20 @@ sanitize_name() {
 run_count=${#ROWS[@]}
 failed=0
 seq=0
-
+testrun="$(python3 -c 'import secrets; print(secrets.token_hex(3))')"
+log "Running ${run_count} Atomic technique(s) from ${CONFIG} (testrun=${testrun})"
 for row in "${ROWS[@]}"; do
-  testrun="$(python3 -c 'import secrets; print(secrets.token_hex(3))')"
-  log "Running ${run_count} Atomic technique(s) from ${CONFIG} (testrun=${testrun})"
-  IFS=$'\x1f' read -r technique guid name timeout args <<<"$row"
+
+  IFS=$'\x1f' read -r technique guid name timeout args source <<<"$row"
   seq=$((seq + 1))
+  # Preserve the human-readable technique name before it is shadowed by the
+  # generated container name below; it becomes the atomic.name label.
+  display="${name}"
   name="$(sanitize_name "$technique")-${seq}"
 
   docker_args=(--rm --name "$name" --label "com.redcanary.atomic.test=${technique}"
+               --label "com.redcanary.atomic.name=${display}"
+               --label "com.redcanary.atomic.link=${source}"
                --label "com.redcanary.atomic.testrun=${testrun}")
   [[ -n "$guid" ]] && docker_args+=(--label "com.redcanary.atomic.guid=${guid}")
 

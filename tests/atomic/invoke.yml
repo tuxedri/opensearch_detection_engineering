@@ -5,21 +5,116 @@
 #   Invoke-AtomicTest <technique> [<args>]
 # Container name and the com.redcanary.atomic.* labels are derived from <technique>.
 # Each entry selects one upstream test with -TestGuids; atomic_guid is its label.
+# source links to the human-readable upstream technique page.
+# args is PowerShell syntax; atomic_guid alone does not select a test.
+# Tests run in disposable Linux containers without host filesystem mounts.
 # Use --limit N on invoke-atomic.sh to cap how many enabled entries execute.
 # Sources:
 # https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1059.004/T1059.004.yaml
 # https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1140/T1140.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1546/T1546.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1556.003/T1556.003.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1553.004/T1553.004.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552.004/T1552.004.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552.001/T1552.001.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552/T1552.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1548.003/T1548.003.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1547.006/T1547.006.yaml
+# https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552.003/T1552.003.yaml
 
 techniques:
   - technique: T1059.004                       # the Invoke-AtomicTest argument
     name: Obfuscated command line scripts
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1059.004/T1059.004.md
     atomic_guid: 5bec4cc8-f41e-437b-b417-33ff60acf9af
     enabled: true
     timeout_seconds: 120
-    args: ""
+    args: "-TestGuids 5bec4cc8-f41e-437b-b417-33ff60acf9af"
   - technique: T1140
     name: Base64 decoding with shell utilities
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1140/T1140.md
     atomic_guid: b4f6a567-a27a-41e5-b8ef-ac4b4008bb7e
     enabled: true
     timeout_seconds: 120
-    args: ""
+    args: "-TestGuids b4f6a567-a27a-41e5-b8ef-ac4b4008bb7e"
+  - technique: T1546
+    name: HKCU - Persistence using CommandProcessor AutoRun key (Without Elevation)
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1546/T1546.md
+    atomic_guid: 36b8dbf9-59b1-4e9b-a3bb-36e80563ef01
+    enabled: false  # Upstream T1546 tests are Windows-only; this runner uses Linux.
+    timeout_seconds: 120
+    args: "-TestGuids 36b8dbf9-59b1-4e9b-a3bb-36e80563ef01"
+  - technique: T1556.003
+    name: Malicious PAM rule
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1556.003/T1556.003.md
+    atomic_guid: 4b9dde80-ae22-44b1-a82a-644bf009eb9c
+    enabled: true
+    timeout_seconds: 120
+    # Requires sudo and /etc/pam.d/su-l in the image; modifies container PAM only.
+    args: "-TestGuids 4b9dde80-ae22-44b1-a82a-644bf009eb9c"
+  - technique: T1553.004
+    name: Install root CA on Debian/Ubuntu
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1553.004/T1553.004.md
+    atomic_guid: 53bcf8a0-1549-4b85-b919-010c56d724ff
+    enabled: true
+    timeout_seconds: 240
+    # -GetPrereqs alone does not execute the test. Generate the disposable CA,
+    # then install it in the same container (openssl, sudo, ca-certificates).
+    args: >-
+      -TestGuids 53bcf8a0-1549-4b85-b919-010c56d724ff -GetPrereqs;
+      Invoke-AtomicTest T1553.004 -TestGuids 53bcf8a0-1549-4b85-b919-010c56d724ff
+  - technique: T1552.004
+    name: Discover Private SSH Keys
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552.004/T1552.004.md
+    atomic_guid: 46959285-906d-40fa-9437-5a439accd878
+    enabled: true
+    timeout_seconds: 120
+    # Search the container home, avoiding /proc and /sys traversal.
+    args: "-TestGuids 46959285-906d-40fa-9437-5a439accd878 -InputArgs @{search_path='/root'}"
+  - technique: T1552.001
+    name: Find AWS credentials
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552.001/T1552.001.md
+    atomic_guid: 37807632-d3da-442e-8c2e-00f44928ff8f
+    enabled: true
+    timeout_seconds: 120
+    # Discovery only; no AWS account required. No matches is a valid result.
+    args: "-TestGuids 37807632-d3da-442e-8c2e-00f44928ff8f -InputArgs @{file_path='/root'}"
+  - technique: T1552
+    name: AWS - Retrieve EC2 Password Data using stratus
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552/T1552.md
+    atomic_guid: a21118de-b11e-4ebd-b655-42f11142df0c
+    enabled: false  # Requires Stratus, AWS credentials/permissions, and cloud resources.
+    timeout_seconds: 600
+    # Not runnable in the default image: prerequisites and AWS setup are external.
+    args: "-TestGuids a21118de-b11e-4ebd-b655-42f11142df0c"
+  - technique: T1548.003
+    name: Unlimited sudo cache timeout
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1548.003/T1548.003.md
+    atomic_guid: a7b17659-dd5e-46f7-b7d1-e6792c91d0bc
+    enabled: true
+    timeout_seconds: 120
+    # Noninteractive alternative to upstream Sudo usage (which launches vim).
+    # Requires sudo/visudo; changes only the disposable container's /etc/sudoers.
+    args: "-TestGuids a7b17659-dd5e-46f7-b7d1-e6792c91d0bc"
+  - technique: T1547.006                              # kernel module load; attempt trips the rule
+    name: Kernel Modules and Extensions
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1547.006/T1547.006.md
+    atomic_guid: 687dcb93-9656-4853-9c36-9977315e9d23
+    enabled: true                                     # failure is expected/acceptable — the probe is detected
+    timeout_seconds: 240
+    args: >-
+      -TestGuids 687dcb93-9656-4853-9c36-9977315e9d23 -InputArgs @{module_name='T1547006'; module_path='/tmp/T1547.006/T1547006.ko'; temp_folder='/tmp/T1547.006'}
+  - technique: T1552.003                              # grep bash history for creds; discovery only
+    name: Find unsecured credentials in bash history
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1552.003/T1552.003.md
+    atomic_guid: 3cfde62b-7c33-4b26-a61e-755d6131c8ce
+    enabled: true
+    timeout_seconds: 120
+    args: "-TestGuids 3cfde62b-7c33-4b26-a61e-755d6131c8ce"
+  - technique: T1046-1
+    name: Port Scan
+    source: https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1046/T1046.md
+    atomic_guid: 68e907da-2539-48f6-9fc9-257a78c05540
+    enabled: true
+    timeout_seconds: 120
+    args: "-TestGuids 68e907da-2539-48f6-9fc9-257a78c05540"
