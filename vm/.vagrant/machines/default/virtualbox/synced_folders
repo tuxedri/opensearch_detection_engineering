@@ -1,1 +1,0 @@
-{"virtualbox":{"/workspace/opensearch-detection-lab":{"type":"virtualbox","owner":"vagrant","group":"vagrant","guestpath":"/workspace/opensearch-detection-lab","hostpath":"/home/driepl/code/opensearch_detection_engineering","disabled":false,"__vagrantfile":true}}}
