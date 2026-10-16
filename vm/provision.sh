@@ -46,7 +46,8 @@ apt-get install --yes --no-install-recommends \
   docker-buildx-plugin \
   docker-ce \
   docker-ce-cli \
-  docker-compose-plugin
+  docker-compose-plugin \
+  python3-venv
 
 systemctl enable --now docker
 usermod -aG docker vagrant

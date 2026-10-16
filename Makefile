@@ -1,14 +1,21 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: compose-install up down setup health objects atomic demo coverage reset logs status test unit-test validate vm-up vm-ssh vm-destroy vm-validate
+.DEFAULT_GOAL := help
+.PHONY: help up down setup health objects findings reset logs status test unit-test validate
 
 COMPOSE := ./scripts/compose.sh
-.PHONY: findings
-VM_DIR := $(CURDIR)/vm
-VM_PROVIDER ?= virtualbox
-
-compose-install:
-	./scripts/install-compose.sh
+help:
+	@printf '%s\n' 'Run inside the lab VM. See docs/commands.md for details.' \
+	  'setup, up   Start and configure the telemetry stack' \
+	  'down, reset Stop the stack; preserve data volumes' \
+	  'health      Check core service health' \
+	  'status      Show container status' \
+	  'logs        Follow service logs (Ctrl-C to stop following)' \
+	  'objects     Import saved dashboards (overwrite matching IDs)' \
+	  'findings    Import enriched Security Analytics findings' \
+	  'test        Run Atomic simulations; accepts ARGS="..."' \
+	  'unit-test   Run Python regression tests' \
+	  'validate    Check YAML, JSON, shell syntax and Compose'
 
 up:
 	./scripts/setup.sh
@@ -40,7 +47,10 @@ status:
 test:
 	./tests/atomic/invoke-atomic.sh $(ARGS)
 
+unit-test:
+	python3 -m pytest -q tests/unit
+
 validate:
-	python3 -c 'import pathlib, yaml; [yaml.safe_load(p.read_text()) for p in pathlib.Path(".").rglob("*.yml")]; [yaml.safe_load(p.read_text()) for p in pathlib.Path(".").rglob("*.yaml")]'
-	for script in scripts/*.sh vm/*.sh; do bash -n "$$script" || exit 1; done
+	python3 scripts/validate-files.py
+	for script in scripts/*.sh vm/*.sh tests/atomic/*.sh; do bash -n "$$script" || exit 1; done
 	$(COMPOSE) config --quiet

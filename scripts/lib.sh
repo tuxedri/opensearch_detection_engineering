@@ -31,7 +31,7 @@ require_compose() {
     return 0
   fi
 
-  error "Docker Compose v2 or newer is required. Run 'make compose-install'."
+  error "Docker Compose v2 or newer is required. Install the Docker Compose plugin, or run bash scripts/install-compose.sh."
   return 1
 }
 
